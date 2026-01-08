@@ -8,20 +8,20 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
 
-// ADMIN-KÄYTTÄJÄT (Lisää tähän sähköpostit, joilla on oikeus poistaa muita)
+// --- ASETUKSET ---
+// Tähän listaan sähköpostit, joilla on oikeus poistaa käyttäjiä asetuksista
 const ADMIN_EMAILS = ['toni@kauppinen.info']; 
 
-// VÄRIPALETTI
 const VARIPALETTI = [
     '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', 
     '#3498db', '#9b59b6', '#34495e', '#7f8c8d', '#ff9ff3', 
     '#f368e0', '#00d2d3', '#5f27cd', '#c8d6e5', '#576574'
 ];
 
-// --- GLOBAALIT ---
+// --- GLOBAALIT MUUTTUJAT ---
 let nykyinenKayttaja = null; 
 let nykyinenUid = null;
-let nykyinenEmail = null; // Tarvitaan admin-tarkistukseen
+let nykyinenEmail = null; 
 let perheenJasenet = {}; 
 let kaikkiTapahtumat = [];
 let kaikkiTehtavat = [];
@@ -37,73 +37,21 @@ let menneetSivu = 0;
 let tulevatSivu = 0;
 const TAPAHTUMIA_PER_SIVU = 10;
 
-// --- DOM ELEMENTIT ---
-const elements = {
-    loginOverlay: document.getElementById('login-overlay'),
-    loginForm: document.getElementById('login-form'),
-    mainContainer: document.getElementById('main-container'),
-    currentUserDisplay: document.getElementById('current-user-name'),
-    logoutBtn: document.getElementById('logout-btn'),
-    authToggleLink: document.getElementById('auth-toggle-link'),
-    authSubmitBtn: document.getElementById('submit-auth-btn'),
-    authToggleText: document.getElementById('auth-toggle-text'),
-    loginError: document.getElementById('login-error'),
-    
-    // Kalenteri
-    grid: document.getElementById('kalenteri-grid'),
-    monthTitle: document.getElementById('kuukausi-otsikko'),
-    prevMonth: document.getElementById('edellinen-kk'),
-    nextMonth: document.getElementById('seuraava-kk'),
-    todayBtn: document.getElementById('tanaan-btn'),
-    dayHeaders: document.getElementById('kalenteri-paivat-otsikot'),
-
-    // Listat & Lomakkeet
-    upcomingList: document.getElementById('tulevat-tapahtumat-lista'),
-    searchField: document.getElementById('haku-kentta'),
-    filterContainer: document.getElementById('tulevat-suodatin'),
-    addForm: document.getElementById('lisaa-tapahtuma-lomake'),
-    sidebar: document.querySelector('.sivupalkki'),
-    openAddFormBtn: document.getElementById('avaa-lisays-lomake-btn'),
-
-    // Tehtävät
-    taskListContainer: document.getElementById('tehtavat-container'),
-    taskInput: document.getElementById('uusi-tehtava-teksti'),
-    addTaskBtn: document.getElementById('lisaa-tehtava-nappi'),
-    taskAssignContainer: document.getElementById('lisaa-tehtava-henkilot'),
-    taskListToggle: document.getElementById('tehtavalista-toggle'),
-    taskListContent: document.getElementById('tehtavalista-sisalto'),
-    openArchiveBtn: document.getElementById('avaa-arkisto-btn'),
-
-    // Modals
-    eventModal: document.getElementById('tapahtuma-modal-overlay'),
-    pastModal: document.getElementById('menneet-tapahtumat-modal'),
-    archiveModal: document.getElementById('tehtava-arkisto-modal'),
-    
-    // Asetukset
-    settingsModal: document.getElementById('settings-modal'),
-    openSettingsBtn: document.getElementById('open-settings-btn'),
-    closeSettingsBtn: document.getElementById('close-settings-btn'),
-    settingsUserList: document.getElementById('settings-users-list'),
-    
-    // Omat profiilikentät
-    omaNayttonimiInput: document.getElementById('oma-nayttonimi'),
-    variValitsinContainer: document.getElementById('varivalitsin-container'),
-    tallennaProfiiliBtn: document.getElementById('tallenna-profiili-btn'),
-    variVirhe: document.getElementById('vari-virhe')
-};
+// Elementit-objekti alustetaan tyhjäksi, täytetään vasta kun sivu on ladattu
+let elements = {};
 
 // --- AUTHENTICATION & STARTUP ---
 let isRegistering = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-    alustaPerusKuuntelijat();
+    alustaElementitJaKuuntelijat();
     
     onAuthStateChanged(auth, (user) => {
         if (user) {
             nykyinenUid = user.uid;
             nykyinenEmail = user.email;
             nykyinenKayttaja = user.displayName || user.email.split('@')[0];
-            elements.currentUserDisplay.textContent = nykyinenKayttaja;
+            if(elements.currentUserDisplay) elements.currentUserDisplay.textContent = nykyinenKayttaja;
             naytaSovellus(user);
         } else {
             piilotaSovellus();
@@ -111,8 +59,63 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-function alustaPerusKuuntelijat() {
-    // Auth toggle
+function alustaElementitJaKuuntelijat() {
+    // 1. Haetaan kaikki elementit täällä, jolloin ne varmasti ovat olemassa
+    elements = {
+        loginOverlay: document.getElementById('login-overlay'),
+        loginForm: document.getElementById('login-form'),
+        mainContainer: document.getElementById('main-container'),
+        currentUserDisplay: document.getElementById('current-user-name'),
+        logoutBtn: document.getElementById('logout-btn'),
+        authToggleLink: document.getElementById('auth-toggle-link'),
+        authSubmitBtn: document.getElementById('submit-auth-btn'),
+        authToggleText: document.getElementById('auth-toggle-text'),
+        loginError: document.getElementById('login-error'),
+        
+        // Kalenteri
+        grid: document.getElementById('kalenteri-grid'),
+        monthTitle: document.getElementById('kuukausi-otsikko'),
+        prevMonth: document.getElementById('edellinen-kk'),
+        nextMonth: document.getElementById('seuraava-kk'),
+        todayBtn: document.getElementById('tanaan-btn'),
+        dayHeaders: document.getElementById('kalenteri-paivat-otsikot'),
+
+        // Listat & Lomakkeet
+        upcomingList: document.getElementById('tulevat-tapahtumat-lista'),
+        searchField: document.getElementById('haku-kentta'),
+        filterContainer: document.getElementById('tulevat-suodatin'),
+        addForm: document.getElementById('lisaa-tapahtuma-lomake'),
+        sidebar: document.querySelector('.sivupalkki'),
+        openAddFormBtn: document.getElementById('avaa-lisays-lomake-btn'),
+
+        // Tehtävät
+        taskListContainer: document.getElementById('tehtavat-container'),
+        taskInput: document.getElementById('uusi-tehtava-teksti'),
+        addTaskBtn: document.getElementById('lisaa-tehtava-nappi'),
+        taskAssignContainer: document.getElementById('lisaa-tehtava-henkilot'),
+        taskListToggle: document.getElementById('tehtavalista-toggle'),
+        taskListContent: document.getElementById('tehtavalista-sisalto'),
+        openArchiveBtn: document.getElementById('avaa-arkisto-btn'),
+
+        // Modals
+        eventModal: document.getElementById('tapahtuma-modal-overlay'),
+        pastModal: document.getElementById('menneet-tapahtumat-modal'),
+        archiveModal: document.getElementById('tehtava-arkisto-modal'),
+        
+        // Asetukset
+        settingsModal: document.getElementById('settings-modal'),
+        openSettingsBtn: document.getElementById('open-settings-btn'),
+        closeSettingsBtn: document.getElementById('close-settings-btn'),
+        settingsUserList: document.getElementById('settings-users-list'),
+        
+        // Omat profiilikentät
+        omaNayttonimiInput: document.getElementById('oma-nayttonimi'),
+        variValitsinContainer: document.getElementById('varivalitsin-container'),
+        tallennaProfiiliBtn: document.getElementById('tallenna-profiili-btn'),
+        variVirhe: document.getElementById('vari-virhe')
+    };
+
+    // 2. Lisätään kuuntelijat VAIN jos elementti löytyi
     if(elements.authToggleLink) {
         elements.authToggleLink.addEventListener('click', (e) => {
             e.preventDefault();
@@ -124,28 +127,25 @@ function alustaPerusKuuntelijat() {
         });
     }
 
-    elements.loginForm.addEventListener('submit', handleAuth);
-    elements.logoutBtn.addEventListener('click', () => signOut(auth));
+    if(elements.loginForm) elements.loginForm.addEventListener('submit', handleAuth);
+    if(elements.logoutBtn) elements.logoutBtn.addEventListener('click', () => signOut(auth));
 
-    // Kalenteri navigaatio
-    elements.prevMonth.addEventListener('click', () => { nykyinenPaiva.setMonth(nykyinenPaiva.getMonth() - 1); piirraKalenteri(); });
-    elements.nextMonth.addEventListener('click', () => { nykyinenPaiva.setMonth(nykyinenPaiva.getMonth() + 1); piirraKalenteri(); });
-    elements.todayBtn.addEventListener('click', () => { nykyinenPaiva = new Date(); piirraKalenteri(); });
+    if(elements.prevMonth) elements.prevMonth.addEventListener('click', () => { nykyinenPaiva.setMonth(nykyinenPaiva.getMonth() - 1); piirraKalenteri(); });
+    if(elements.nextMonth) elements.nextMonth.addEventListener('click', () => { nykyinenPaiva.setMonth(nykyinenPaiva.getMonth() + 1); piirraKalenteri(); });
+    if(elements.todayBtn) elements.todayBtn.addEventListener('click', () => { nykyinenPaiva = new Date(); piirraKalenteri(); });
 
-    // Lomake toggle
-    elements.openAddFormBtn.addEventListener('click', () => elements.sidebar.classList.toggle('hidden'));
-    elements.addForm.addEventListener('submit', lisaaTapahtuma);
+    if(elements.openAddFormBtn) elements.openAddFormBtn.addEventListener('click', () => elements.sidebar.classList.toggle('hidden'));
+    if(elements.addForm) elements.addForm.addEventListener('submit', lisaaTapahtuma);
     
-    // ASETUKSET - Tässä oli aiemmin vikaa, nyt varmistettu
+    // ASETUKSET - TÄMÄ OLI ONGELMAKOHTA
     if(elements.openSettingsBtn) {
         elements.openSettingsBtn.addEventListener('click', avaaOmatAsetukset);
+    } else {
+        console.error("Asetus-nappia ei löytynyt! Tarkista index.html ID='open-settings-btn'");
     }
-    if(elements.closeSettingsBtn) {
-        elements.closeSettingsBtn.addEventListener('click', () => elements.settingsModal.classList.add('hidden'));
-    }
-    if(elements.tallennaProfiiliBtn) {
-        elements.tallennaProfiiliBtn.addEventListener('click', tallennaOmaProfiili);
-    }
+
+    if(elements.closeSettingsBtn) elements.closeSettingsBtn.addEventListener('click', () => elements.settingsModal.classList.add('hidden'));
+    if(elements.tallennaProfiiliBtn) elements.tallennaProfiiliBtn.addEventListener('click', tallennaOmaProfiili);
 
     // Sulje modaalit taustaa klikkaamalla
     document.querySelectorAll('.modal-overlay').forEach(modal => {
@@ -154,10 +154,9 @@ function alustaPerusKuuntelijat() {
         });
     });
 
-    // Listat
-    elements.taskListToggle.addEventListener('click', () => elements.taskListContent.classList.toggle('hidden'));
-    elements.addTaskBtn.addEventListener('click', lisaaTehtava);
-    elements.searchField.addEventListener('input', () => { tulevatSivu = 0; naytaTulevatTapahtumat(); });
+    if(elements.taskListToggle) elements.taskListToggle.addEventListener('click', () => elements.taskListContent.classList.toggle('hidden'));
+    if(elements.addTaskBtn) elements.addTaskBtn.addEventListener('click', lisaaTehtava);
+    if(elements.searchField) elements.searchField.addEventListener('input', () => { tulevatSivu = 0; naytaTulevatTapahtumat(); });
 }
 
 async function handleAuth(e) {
@@ -226,7 +225,7 @@ function luoOletusProfiili(user) {
     const uusiProfiili = {
         nayttonimi: displayName,
         vari: vapaaVari,
-        email: user.email // Tallennetaan email tunnistamista varten
+        email: user.email 
     };
 
     update(ref(database, `asetukset/kayttajat/${user.uid}`), uusiProfiili);
@@ -279,10 +278,10 @@ function paivitaKayttajaListaAsetuksiin() {
     const list = elements.settingsUserList;
     list.innerHTML = '';
     
+    // Tarkistetaan onko nykyinen käyttäjä Admin-listalla
     const isAdmin = ADMIN_EMAILS.includes(nykyinenEmail);
 
     Object.entries(perheenJasenet).forEach(([uid, user]) => {
-        // Ei näytetä itseä listassa, koska itseä muokataan ylhäällä
         if (uid === nykyinenUid) return;
 
         const div = document.createElement('div');
@@ -295,14 +294,11 @@ function paivitaKayttajaListaAsetuksiin() {
             </div>
         `;
 
-        // Lisää poistonappi vain jos olet Admin
         if (isAdmin) {
             const delBtn = document.createElement('button');
             delBtn.className = 'delete-user-btn';
             delBtn.textContent = 'Poista';
             delBtn.onclick = () => poistaKayttaja(uid, user.nayttonimi);
-            div.appendChild(delBtn);
-            // Muutetaan HTML-rakennetta että append toimii oikein
             div.innerHTML = content; 
             div.appendChild(delBtn); 
         } else {
@@ -314,7 +310,7 @@ function paivitaKayttajaListaAsetuksiin() {
 }
 
 function poistaKayttaja(uid, nimi) {
-    if(confirm(`Haluatko varmasti poistaa käyttäjän ${nimi}? Hänen tapahtumansa säilyvät kannassa, mutta hän ei voi enää suodattaa näkymää omalla nimellään.`)) {
+    if(confirm(`Haluatko varmasti poistaa käyttäjän ${nimi}?`)) {
         remove(ref(database, `asetukset/kayttajat/${uid}`)).then(() => {
             alert("Käyttäjä poistettu.");
         });
@@ -338,6 +334,7 @@ function tallennaOmaProfiili() {
 
 // --- UI PÄIVITYKSET ---
 function paivitaKayttoliittymaAsetuksilla() {
+    if(!elements.filterContainer) return;
     elements.filterContainer.innerHTML = '<button class="filter-btn active" data-filter="kaikki">Kaikki</button>';
     
     const perheBtn = document.createElement('button');
@@ -369,17 +366,19 @@ function paivitaKayttoliittymaAsetuksilla() {
 
 function paivitaDynaamisetLomakkeet() {
     const taskContainer = elements.taskAssignContainer;
-    taskContainer.innerHTML = '<small>Kohdista:</small>';
-    Object.entries(perheenJasenet).forEach(([uid, user]) => {
-        const btn = document.createElement('button');
-        btn.className = 'assign-btn';
-        btn.dataset.assignee = uid;
-        btn.textContent = user.nayttonimi.charAt(0).toUpperCase();
-        btn.title = user.nayttonimi;
-        btn.style.borderColor = user.vari;
-        btn.addEventListener('click', () => btn.classList.toggle('active'));
-        taskContainer.appendChild(btn);
-    });
+    if(taskContainer) {
+        taskContainer.innerHTML = '<small>Kohdista:</small>';
+        Object.entries(perheenJasenet).forEach(([uid, user]) => {
+            const btn = document.createElement('button');
+            btn.className = 'assign-btn';
+            btn.dataset.assignee = uid;
+            btn.textContent = user.nayttonimi.charAt(0).toUpperCase();
+            btn.title = user.nayttonimi;
+            btn.style.borderColor = user.vari;
+            btn.addEventListener('click', () => btn.classList.toggle('active'));
+            taskContainer.appendChild(btn);
+        });
+    }
 
     ['.ketakoskee-valinnat', '.nakyvyys-valinnat', '#muokkaa-ketakoskee', '#muokkaa-nakyvyys'].forEach((selector) => {
         const containers = document.querySelectorAll(selector);
@@ -438,6 +437,7 @@ function lataaTapahtumat() {
 
 // --- KALENTERIN PIIRTO ---
 function piirraKalenteri() {
+    if(!elements.grid) return;
     elements.grid.innerHTML = '';
     elements.dayHeaders.innerHTML = '';
     
@@ -552,6 +552,7 @@ function getViikkoNumero(d) {
 // --- TULEVAT TAPAHTUMAT ---
 function naytaTulevatTapahtumat() {
     const lista = elements.upcomingList;
+    if(!lista) return;
     lista.innerHTML = '';
     
     const hakutermi = elements.searchField.value.toLowerCase();
@@ -678,7 +679,7 @@ function avaaTapahtumaIkkuna(t) {
     document.getElementById('modal-edit-content').classList.add('hidden');
 }
 
-// Muokkaus napit
+// Muokkaus napit - HAETAAN DODYMENTISTA suoraan koska nämä on staattisia
 document.getElementById('muokkaa-btn').addEventListener('click', () => {
     document.getElementById('modal-view-content').classList.add('hidden');
     document.getElementById('modal-edit-content').classList.remove('hidden');
@@ -732,6 +733,7 @@ function lataaTehtavat() {
 
 function piirraTehtavalista() {
     const container = elements.taskListContainer;
+    if(!container) return;
     container.innerHTML = '';
     const avoimet = kaikkiTehtavat.filter(t => t.tila !== 'arkistoitu').sort((a,b) => a.tehty - b.tehty);
     document.getElementById('avoimet-tehtavat-laskuri').textContent = `${avoimet.filter(t=>!t.tehty).length} avointa`;
