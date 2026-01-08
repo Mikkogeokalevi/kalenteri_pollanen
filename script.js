@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getDatabase, ref, push, onValue, update, remove, set, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { firebaseConfig, DEFAULT_CONFIG } from "./config.js";
 
 // --- ALUSTUS ---
@@ -8,24 +8,27 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
 
-// VÄRIPALETTI (Nämä värit ovat valittavissa asetuksissa)
+// ADMIN-KÄYTTÄJÄT (Lisää tähän sähköpostit, joilla on oikeus poistaa muita)
+const ADMIN_EMAILS = ['toni@kauppinen.info']; 
+
+// VÄRIPALETTI
 const VARIPALETTI = [
     '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', 
     '#3498db', '#9b59b6', '#34495e', '#7f8c8d', '#ff9ff3', 
     '#f368e0', '#00d2d3', '#5f27cd', '#c8d6e5', '#576574'
 ];
 
-// --- GLOBAALIT MUUTTUJAT ---
-let nykyinenKayttaja = null; // DisplayName (esim. "Matti")
-let nykyinenUid = null;      // Firebase UID (esim. "AbC123...")
-let perheenJasenet = {};     // Tietokannasta ladattu lista: { uid: {nayttonimi, vari}, ... }
+// --- GLOBAALIT ---
+let nykyinenKayttaja = null; 
+let nykyinenUid = null;
+let nykyinenEmail = null; // Tarvitaan admin-tarkistukseen
+let perheenJasenet = {}; 
 let kaikkiTapahtumat = [];
 let kaikkiTehtavat = [];
 let nykyinenPaiva = new Date();
+let valittuVari = ''; 
 
-let valittuVari = ''; // Värivalitsimen tilapäismuuttuja
-
-// Kuuntelijat (tallennetaan jotta voidaan sammuttaa kirjauduttaessa ulos)
+// Kuuntelijat
 let unsubscribeEvents = null;
 let unsubscribeTasks = null;
 let unsubscribeSettings = null;
@@ -76,7 +79,7 @@ const elements = {
     pastModal: document.getElementById('menneet-tapahtumat-modal'),
     archiveModal: document.getElementById('tehtava-arkisto-modal'),
     
-    // Asetukset (Uusi logiikka)
+    // Asetukset
     settingsModal: document.getElementById('settings-modal'),
     openSettingsBtn: document.getElementById('open-settings-btn'),
     closeSettingsBtn: document.getElementById('close-settings-btn'),
@@ -98,8 +101,8 @@ document.addEventListener('DOMContentLoaded', () => {
     onAuthStateChanged(auth, (user) => {
         if (user) {
             nykyinenUid = user.uid;
-            // Alustava nimi sähköpostista, kunnes kanta latautuu
-            nykyinenKayttaja = user.email.split('@')[0]; 
+            nykyinenEmail = user.email;
+            nykyinenKayttaja = user.displayName || user.email.split('@')[0];
             elements.currentUserDisplay.textContent = nykyinenKayttaja;
             naytaSovellus(user);
         } else {
@@ -110,19 +113,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function alustaPerusKuuntelijat() {
     // Auth toggle
-    elements.authToggleLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        isRegistering = !isRegistering;
-        elements.authSubmitBtn.textContent = isRegistering ? 'Rekisteröidy' : 'Kirjaudu sisään';
-        elements.authToggleText.textContent = isRegistering ? 'Onko sinulla jo tunnus?' : 'Uusi käyttäjä?';
-        elements.authToggleLink.textContent = isRegistering ? 'Kirjaudu' : 'Luo tunnus';
-        elements.loginError.classList.add('hidden');
-    });
+    if(elements.authToggleLink) {
+        elements.authToggleLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            isRegistering = !isRegistering;
+            elements.authSubmitBtn.textContent = isRegistering ? 'Rekisteröidy' : 'Kirjaudu sisään';
+            elements.authToggleText.textContent = isRegistering ? 'Onko sinulla jo tunnus?' : 'Uusi käyttäjä?';
+            elements.authToggleLink.textContent = isRegistering ? 'Kirjaudu' : 'Luo tunnus';
+            elements.loginError.classList.add('hidden');
+        });
+    }
 
     elements.loginForm.addEventListener('submit', handleAuth);
     elements.logoutBtn.addEventListener('click', () => signOut(auth));
 
-    // Kalenterin navigaatio
+    // Kalenteri navigaatio
     elements.prevMonth.addEventListener('click', () => { nykyinenPaiva.setMonth(nykyinenPaiva.getMonth() - 1); piirraKalenteri(); });
     elements.nextMonth.addEventListener('click', () => { nykyinenPaiva.setMonth(nykyinenPaiva.getMonth() + 1); piirraKalenteri(); });
     elements.todayBtn.addEventListener('click', () => { nykyinenPaiva = new Date(); piirraKalenteri(); });
@@ -131,10 +136,16 @@ function alustaPerusKuuntelijat() {
     elements.openAddFormBtn.addEventListener('click', () => elements.sidebar.classList.toggle('hidden'));
     elements.addForm.addEventListener('submit', lisaaTapahtuma);
     
-    // Asetukset
-    elements.openSettingsBtn.addEventListener('click', avaaOmatAsetukset);
-    elements.closeSettingsBtn.addEventListener('click', () => elements.settingsModal.classList.add('hidden'));
-    elements.tallennaProfiiliBtn.addEventListener('click', tallennaOmaProfiili);
+    // ASETUKSET - Tässä oli aiemmin vikaa, nyt varmistettu
+    if(elements.openSettingsBtn) {
+        elements.openSettingsBtn.addEventListener('click', avaaOmatAsetukset);
+    }
+    if(elements.closeSettingsBtn) {
+        elements.closeSettingsBtn.addEventListener('click', () => elements.settingsModal.classList.add('hidden'));
+    }
+    if(elements.tallennaProfiiliBtn) {
+        elements.tallennaProfiiliBtn.addEventListener('click', tallennaOmaProfiili);
+    }
 
     // Sulje modaalit taustaa klikkaamalla
     document.querySelectorAll('.modal-overlay').forEach(modal => {
@@ -165,7 +176,6 @@ async function handleAuth(e) {
     } catch (error) {
         console.error(error);
         let msg = "Virhe kirjautumisessa.";
-        if (error.code === 'auth/weak-password') msg = "Salasana liian lyhyt (min 6 merkkiä).";
         if (error.code === 'auth/email-already-in-use') msg = "Sähköposti on jo käytössä.";
         if (error.code === 'auth/invalid-credential') msg = "Väärä tunnus tai salasana.";
         elements.loginError.textContent = msg;
@@ -176,11 +186,7 @@ async function handleAuth(e) {
 function naytaSovellus(user) {
     elements.loginOverlay.classList.add('hidden');
     elements.mainContainer.classList.remove('hidden');
-    
-    // 1. Ladataan käyttäjät ja hoidetaan oma profiili kuntoon
     lataaKayttajatJaVarmistaOma(user);
-    
-    // 2. Ladataan sisältö
     lataaTapahtumat();
     lataaTehtavat();
 }
@@ -200,12 +206,9 @@ function lataaKayttajatJaVarmistaOma(user) {
         const data = snapshot.val() || {};
         perheenJasenet = data;
 
-        // Tarkistetaan, onko nykyinen käyttäjä jo kannassa
         if (!perheenJasenet[user.uid]) {
-            // UUSI KÄYTTÄJÄ: Luodaan profiili automaattisesti
             luoOletusProfiili(user);
         } else {
-            // VANHA KÄYTTÄJÄ: Päivitetään nimi käyttöliittymään kannasta
             nykyinenKayttaja = perheenJasenet[user.uid].nayttonimi;
             elements.currentUserDisplay.textContent = nykyinenKayttaja;
         }
@@ -215,20 +218,17 @@ function lataaKayttajatJaVarmistaOma(user) {
 }
 
 function luoOletusProfiili(user) {
-    // Etsitään vapaa väri (sellainen jota ei ole muilla)
     const kaytetytVarit = Object.values(perheenJasenet || {}).map(u => u.vari);
     const vapaaVari = VARIPALETTI.find(c => !kaytetytVarit.includes(c)) || '#999999';
-    
     const oletusNimi = user.email.split('@')[0];
-    // Muutetaan alkukirjain isoksi (esim. toni -> Toni)
     const displayName = oletusNimi.charAt(0).toUpperCase() + oletusNimi.slice(1);
 
     const uusiProfiili = {
         nayttonimi: displayName,
-        vari: vapaaVari
+        vari: vapaaVari,
+        email: user.email // Tallennetaan email tunnistamista varten
     };
 
-    // Tallennetaan kantaan
     update(ref(database, `asetukset/kayttajat/${user.uid}`), uusiProfiili);
 }
 
@@ -250,7 +250,6 @@ function piirraVariValitsin() {
     container.innerHTML = '';
     elements.variVirhe.classList.add('hidden');
 
-    // Haetaan muiden varaamat värit
     const varatutVarit = Object.entries(perheenJasenet)
         .filter(([uid, data]) => uid !== nykyinenUid)
         .map(([uid, data]) => data.vari);
@@ -266,7 +265,6 @@ function piirraVariValitsin() {
 
         if (varatutVarit.includes(vari)) {
             pallo.classList.add('taken');
-            pallo.title = "Varattu toiselle käyttäjälle";
         } else {
             pallo.addEventListener('click', () => {
                 valittuVari = vari;
@@ -281,17 +279,46 @@ function paivitaKayttajaListaAsetuksiin() {
     const list = elements.settingsUserList;
     list.innerHTML = '';
     
-    Object.values(perheenJasenet).forEach(user => {
+    const isAdmin = ADMIN_EMAILS.includes(nykyinenEmail);
+
+    Object.entries(perheenJasenet).forEach(([uid, user]) => {
+        // Ei näytetä itseä listassa, koska itseä muokataan ylhäällä
+        if (uid === nykyinenUid) return;
+
         const div = document.createElement('div');
         div.className = 'settings-user-item';
-        div.innerHTML = `
+        
+        let content = `
             <div class="user-info-left">
                 <div class="user-color-circle" style="background-color: ${user.vari}"></div>
                 <span>${user.nayttonimi}</span>
             </div>
         `;
+
+        // Lisää poistonappi vain jos olet Admin
+        if (isAdmin) {
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-user-btn';
+            delBtn.textContent = 'Poista';
+            delBtn.onclick = () => poistaKayttaja(uid, user.nayttonimi);
+            div.appendChild(delBtn);
+            // Muutetaan HTML-rakennetta että append toimii oikein
+            div.innerHTML = content; 
+            div.appendChild(delBtn); 
+        } else {
+            div.innerHTML = content;
+        }
+        
         list.appendChild(div);
     });
+}
+
+function poistaKayttaja(uid, nimi) {
+    if(confirm(`Haluatko varmasti poistaa käyttäjän ${nimi}? Hänen tapahtumansa säilyvät kannassa, mutta hän ei voi enää suodattaa näkymää omalla nimellään.`)) {
+        remove(ref(database, `asetukset/kayttajat/${uid}`)).then(() => {
+            alert("Käyttäjä poistettu.");
+        });
+    }
 }
 
 function tallennaOmaProfiili() {
@@ -309,9 +336,8 @@ function tallennaOmaProfiili() {
     });
 }
 
-// --- KÄYTTÖLIITTYMÄN PÄIVITYS ---
+// --- UI PÄIVITYKSET ---
 function paivitaKayttoliittymaAsetuksilla() {
-    // 1. Suodatinpainikkeet
     elements.filterContainer.innerHTML = '<button class="filter-btn active" data-filter="kaikki">Kaikki</button>';
     
     const perheBtn = document.createElement('button');
@@ -337,15 +363,11 @@ function paivitaKayttoliittymaAsetuksilla() {
         });
     });
 
-    // 2. Lomakkeet ja valinnat
     paivitaDynaamisetLomakkeet();
-
-    // 3. Piirrä kalenteri uudelleen (värit päivittyvät)
     piirraKalenteri();
 }
 
 function paivitaDynaamisetLomakkeet() {
-    // Tehtävien kohdistus
     const taskContainer = elements.taskAssignContainer;
     taskContainer.innerHTML = '<small>Kohdista:</small>';
     Object.entries(perheenJasenet).forEach(([uid, user]) => {
@@ -359,7 +381,6 @@ function paivitaDynaamisetLomakkeet() {
         taskContainer.appendChild(btn);
     });
 
-    // Checkboxit
     ['.ketakoskee-valinnat', '.nakyvyys-valinnat', '#muokkaa-ketakoskee', '#muokkaa-nakyvyys'].forEach((selector) => {
         const containers = document.querySelectorAll(selector);
         containers.forEach(container => {
