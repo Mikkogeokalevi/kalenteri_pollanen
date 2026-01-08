@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perhekalenteri</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="logo.png" type="image/png">
+</head>
+<body>
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-box">
+            <h2 id="app-title">Perhekalenteri</h2>
+            <form id="login-form">
+                <label for="login-email">Sähköposti:</label>
+                <input type="email" id="login-email" required autocomplete="email">
+                
+                <label for="login-password">Salasana:</label>
+                <input type="password" id="login-password" required autocomplete="current-password">
+                
+                <button type="submit" id="submit-auth-btn">Kirjaudu sisään</button>
+                
+                <div class="auth-toggle-container">
+                    <span id="auth-toggle-text">Uusi käyttäjä?</span> 
+                    <a href="#" id="auth-toggle-link">Luo tunnus</a>
+                </div>
+
+                <p id="login-error" class="hidden"></p>
+            </form>
+        </div>
+    </div>
+    
+    <div id="main-container" class="container hidden">
+        <header>
+            <div class="header-content">
+                <img src="logo.png" alt="Logo" id="header-logo" onerror="this.style.display='none'">
+                <h1 id="header-title">Perhekalenteri</h1>
+                <button id="open-settings-btn" class="icon-btn" title="Asetukset">⚙️</button>
+            </div>
+        </header>
+
+        <main>
+            <div id="tanaan-banneri"></div>
+
+            <div class="tulevat-tapahtumat">
+                <h3>Tulevat Tapahtumat</h3>
+                <input type="search" id="haku-kentta" placeholder="Hae tapahtumista...">
+                
+                <div id="tulevat-suodatin" class="filter-buttons"></div>
+
+                <div id="tulevat-tapahtumat-lista"></div>
+                
+                <div id="tulevat-pagination-controls" class="pagination-controls hidden">
+                    <button id="tulevat-edellinen-sivu-btn">&lt; Edellinen</button>
+                    <span id="tulevat-sivu-info"></span>
+                    <button id="tulevat-seuraava-sivu-btn">Seuraava &gt;</button>
+                </div>
+            </div>
+
+            <div class="tehtavalista">
+                <div class="tehtavalista-otsikko" id="tehtavalista-toggle">
+                    <h3>Yhteinen muistilista</h3>
+                    <div class="tehtavalista-otsikko-oikea">
+                        <span class="tehtava-laskuri" id="avoimet-tehtavat-laskuri"></span>
+                        <button id="avaa-arkisto-btn" class="pieni-nappi">Arkisto</button>
+                    </div>
+                </div>
+                <div id="tehtavalista-sisalto" class="hidden">
+                    <div id="tehtavat-container"></div>
+                    
+                    <div class="lisaa-tehtava-container">
+                        <div class="maarapaiva-container">
+                            <label>
+                                <input type="checkbox" id="lisaa-maarapaiva-toggle"> Aseta määräpäivä
+                            </label>
+                            <input type="datetime-local" id="uusi-tehtava-maarapaiva" class="hidden">
+                        </div>
+                        <div id="lisaa-tehtava-henkilot" class="assign-buttons">
+                            <small>Kohdista:</small>
+                            </div>
+                        <div class="lisaa-tehtava-lomake">
+                            <input type="text" id="uusi-tehtava-teksti" placeholder="Kirjoita uusi tehtävä...">
+                            <button id="lisaa-tehtava-nappi">Lisää</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="avaa-lisays-lomake-btn" class="lisaa-nappi">Lisää uusi tapahtuma +</button>
+
+            <aside class="sivupalkki hidden">
+                <h3>Lisää uusi tapahtuma</h3>
+                <form id="lisaa-tapahtuma-lomake">
+                    <label>Tapahtuma: <input type="text" id="tapahtuma-otsikko" required></label>
+                    <label>Lisätiedot: <textarea id="tapahtuma-kuvaus" rows="3"></textarea></label>
+                    
+                    <div class="checkbox-container">
+                        <label><input type="checkbox" id="tapahtuma-koko-paiva"> Koko päivän tapahtuma</label>
+                    </div>
+
+                    <div id="aika-valinnat">
+                        <div>
+                            <label>Alkaa: <input type="datetime-local" id="tapahtuma-alku" required></label>
+                        </div>
+                        <div id="loppu-aika-lisaa-container">
+                            <label>Loppuu: <input type="datetime-local" id="tapahtuma-loppu" required></label>
+                        </div>
+                    </div>
+
+                    <label>Linkki: <input type="url" id="tapahtuma-linkki" placeholder="https://..."></label>
+
+                    <fieldset>
+                        <legend>Ketä koskee:</legend>
+                        <div class="ketakoskee-valinnat"></div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Näkyy kenelle:</legend>
+                        <div class="nakyvyys-valinnat"></div>
+                    </fieldset>
+                    <button type="submit">Lisää kalenteriin</button>
+                </form>
+            </aside>
+
+            <div class="kalenteri-ylapalkki">
+                <button id="edellinen-kk">&lt;</button>
+                <button id="tanaan-btn">Tänään</button>
+                <h2 id="kuukausi-otsikko"></h2>
+                <button id="seuraava-kk">&gt;</button>
+            </div>
+            <div id="kalenteri-paivat-otsikot"></div>
+            <div id="kalenteri-grid"></div>
+        </main>
+
+        <footer>
+            <button id="avaa-menneet-modal-btn" class="footer-btn">Näytä menneet tapahtumat</button>
+            <div id="user-info">
+                Kirjautunut: <strong id="current-user-name"></strong>
+                <button id="logout-btn">Kirjaudu ulos</button>
+            </div>
+        </footer>
+    </div>
+
+    <div id="tapahtuma-modal-overlay" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div id="modal-view-content">
+                <h2 id="view-otsikko"></h2>
+                <p><strong>Aika:</strong> <span id="view-aika"></span></p>
+                <p><strong>Lisätiedot:</strong> <span id="view-kuvaus"></span></p>
+                <p><strong>Koskee:</strong> <span id="view-koskee"></span></p>
+                <p id="view-linkki-container" class="hidden"><strong>Linkki:</strong> <a id="view-linkki" href="#" target="_blank">Avaa linkki</a></p>
+                <p><strong>Näkyvyys:</strong> <span id="view-nakyvyys"></span></p>
+                <p><em>Luonut: <span id="view-luoja"></span></em></p>
+                <div class="modal-buttons">
+                    <button type="button" id="kopioi-btn">Kopioi 🗓️</button>
+                    <button type="button" id="muokkaa-btn">Muokkaa ✏️</button>
+                    <button type="button" id="sulje-btn" class="cancel-btn">Sulje</button>
+                </div>
+            </div>
+            <div id="modal-edit-content" class="hidden">
+                <h2>Muokkaa tapahtumaa</h2>
+                <form id="muokkaa-tapahtuma-lomake">
+                    <input type="hidden" id="muokkaa-tapahtuma-id">
+                    <label>Tapahtuma: <input type="text" id="muokkaa-tapahtuma-otsikko" required></label>
+                    <label>Lisätiedot: <textarea id="muokkaa-tapahtuma-kuvaus" rows="3"></textarea></label>
+                    
+                    <div class="checkbox-container">
+                        <label><input type="checkbox" id="muokkaa-tapahtuma-koko-paiva"> Koko päivän tapahtuma</label>
+                    </div>
+
+                    <div id="muokkaa-aika-valinnat">
+                        <div>
+                            <label>Alkaa: <input type="datetime-local" id="muokkaa-tapahtuma-alku" required></label>
+                        </div>
+                        <div id="loppu-aika-muokkaa-container">
+                            <label>Loppuu: <input type="datetime-local" id="muokkaa-tapahtuma-loppu" required></label>
+                        </div>
+                    </div>
+                    <label>Linkki: <input type="url" id="muokkaa-tapahtuma-linkki"></label>
+
+                    <fieldset>
+                        <legend>Ketä koskee:</legend>
+                        <div class="ketakoskee-valinnat" id="muokkaa-ketakoskee"></div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Näkyy kenelle:</legend>
+                        <div class="nakyvyys-valinnat" id="muokkaa-nakyvyys"></div>
+                    </fieldset>
+                    <div class="modal-buttons">
+                        <button type="button" id="tallenna-muutokset-btn">Tallenna</button>
+                        <button type="button" id="poista-tapahtuma-btn" class="delete-btn">Poista</button>
+                        <button type="button" id="peruuta-muokkaus-btn" class="cancel-btn">Peruuta</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="menneet-tapahtumat-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Menneet Tapahtumat</h2>
+                <button id="sulje-menneet-modal-btn" class="close-btn">&times;</button>
+            </div>
+            <input type="search" id="menneet-haku-kentta" placeholder="Hae...">
+            <div id="menneet-tapahtumat-lista"></div>
+            <div class="pagination-controls">
+                <button id="edellinen-sivu-btn">&lt; Edellinen</button>
+                <span id="sivu-info"></span>
+                <button id="seuraava-sivu-btn">Seuraava &gt;</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="tehtava-arkisto-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Arkistoidut tehtävät</h2>
+                <button id="sulje-arkisto-modal-btn" class="close-btn">&times;</button>
+            </div>
+            <div id="arkistoidut-tehtavat-lista"></div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Perheen Asetukset</h2>
+                <button id="close-settings-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="settings-body">
+                <p>Määritä tässä perheenjäsenet ja värit. Muutokset tallentuvat kaikille.</p>
+                
+                <div id="settings-users-list">
+                    </div>
+
+                <div class="add-user-form">
+                    <h4>Lisää jäsen</h4>
+                    <input type="text" id="new-user-name" placeholder="Nimi (esim. Matti)">
+                    <input type="color" id="new-user-color" value="#56ccf2">
+                    <button id="add-user-btn" class="pieni-nappi">+ Lisää</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ilmoitus" class="hidden"></div>
+    
+    <script type="module" src="script.js"></script>
+</body>
+</html>
