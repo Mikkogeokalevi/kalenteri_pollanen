@@ -35,7 +35,7 @@
             <div class="header-content">
                 <img src="logo.png" alt="Logo" id="header-logo" onerror="this.style.display='none'">
                 <h1 id="header-title">Perhekalenteri</h1>
-                <button id="open-settings-btn" class="icon-btn" title="Asetukset">⚙️</button>
+                <button id="open-settings-btn" class="icon-btn" title="Omat asetukset">⚙️</button>
             </div>
         </header>
 
@@ -49,12 +49,6 @@
                 <div id="tulevat-suodatin" class="filter-buttons"></div>
 
                 <div id="tulevat-tapahtumat-lista"></div>
-                
-                <div id="tulevat-pagination-controls" class="pagination-controls hidden">
-                    <button id="tulevat-edellinen-sivu-btn">&lt; Edellinen</button>
-                    <span id="tulevat-sivu-info"></span>
-                    <button id="tulevat-seuraava-sivu-btn">Seuraava &gt;</button>
-                </div>
             </div>
 
             <div class="tehtavalista">
@@ -205,11 +199,6 @@
             </div>
             <input type="search" id="menneet-haku-kentta" placeholder="Hae...">
             <div id="menneet-tapahtumat-lista"></div>
-            <div class="pagination-controls">
-                <button id="edellinen-sivu-btn">&lt; Edellinen</button>
-                <span id="sivu-info"></span>
-                <button id="seuraava-sivu-btn">Seuraava &gt;</button>
-            </div>
         </div>
     </div>
 
@@ -226,21 +215,29 @@
     <div id="settings-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Perheen Asetukset</h2>
+                <h2>Omat asetukset</h2>
                 <button id="close-settings-btn" class="close-btn">&times;</button>
             </div>
             <div class="settings-body">
-                <p>Määritä tässä perheenjäsenet ja värit. Muutokset tallentuvat kaikille.</p>
+                <p>Muokkaa tietojasi. Tämä nimi ja väri näkyvät kaikille.</p>
                 
+                <div class="oma-profiili-form">
+                    <label>Näyttönimi:</label>
+                    <input type="text" id="oma-nayttonimi">
+                    
+                    <label>Valitse tunnusväri:</label>
+                    <div id="varivalitsin-container" class="color-grid">
+                        </div>
+                    <p id="vari-virhe" style="color:#e74c3c; font-size:0.9em; margin-top:5px;" class="hidden">Tämä väri on jo varattu toiselle!</p>
+
+                    <button id="tallenna-profiili-btn">Tallenna muutokset</button>
+                </div>
+
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);">
+                
+                <h4>Perheen jäsenet:</h4>
                 <div id="settings-users-list">
                     </div>
-
-                <div class="add-user-form">
-                    <h4>Lisää jäsen</h4>
-                    <input type="text" id="new-user-name" placeholder="Nimi (esim. Matti)">
-                    <input type="color" id="new-user-color" value="#56ccf2">
-                    <button id="add-user-btn" class="pieni-nappi">+ Lisää</button>
-                </div>
             </div>
         </div>
     </div>
